@@ -79,7 +79,10 @@ namespace SHVDN
 			AppDomain.UnhandledException += HandleUnhandledException;
 
 			// Load API assemblies into this script domain
-			foreach (string apiPath in Directory.EnumerateFiles(apiBasePath, "ScriptHookVDotNet*.dll", SearchOption.TopDirectoryOnly))
+			// 定义新的脚本文件夹路径
+			string scriptsFolderPath = Path.Combine(Directory.GetCurrentDirectory(), "ScriptHookVDotNet 3.6.0");
+			//原始的 foreach (string apiPath in Directory.EnumerateFiles(apiBasePath, "ScriptHookVDotNet*.dll", SearchOption.TopDirectoryOnly))
+			foreach (string apiPath in Directory.EnumerateFiles(scriptsFolderPath, "ScriptHookVDotNet*.dll", SearchOption.TopDirectoryOnly))
 			{
 				Log.Message(Log.Level.Debug, "Loading API from ", apiPath, " ...");
 

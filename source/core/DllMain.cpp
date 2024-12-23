@@ -2,7 +2,7 @@
  * Copyright (C) 2015 crosire & contributors
  * License: https://github.com/crosire/scripthookvdotnet#license
  */
-
+#pragma execution_character_set("utf-8")
 bool sGameReloaded = false;
 
 #pragma managed
