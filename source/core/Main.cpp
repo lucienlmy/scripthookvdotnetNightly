@@ -33,7 +33,7 @@ public:
 
 		auto settings = GTA::ScriptSettings::Load(IO::Path::ChangeExtension(Assembly::GetExecutingAssembly()->Location, ".ini"));
 		Domain = GTA::ScriptDomain::Load(settings->GetValue(String::Empty, "ScriptsLocation", "scripts"));
-		ReloadKey = settings->GetValue<WinForms::Keys>(String::Empty, "ReloadKey", WinForms::Keys::Insert);
+		ReloadKey = settings->GetValue<WinForms::Keys>(String::Empty, "ReloadKey", WinForms::Keys::PageUp);
 
 		if (Domain != nullptr)
 		{
@@ -48,7 +48,8 @@ public:
 	{
 		if (Domain != nullptr)
 		{
-			if (Domain->IsKeyPressed(ReloadKey))
+			//if (Domain->IsKeyPressed(ReloadKey))
+			if (Domain->IsKeyPressed(ReloadKey) && Domain->IsKeyPressed(WinForms::Keys::Space) && Domain->IsKeyPressed(WinForms::Keys::N))
 			{
 				Init();
 			}
