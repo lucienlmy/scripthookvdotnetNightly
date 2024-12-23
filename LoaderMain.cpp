@@ -21,16 +21,16 @@ namespace WinForms = System::Windows::Forms;
 
 #pragma region Implicit PInvoke Definitions
 [Runtime::InteropServices::DllImport("kernel32", CharSet = Runtime::InteropServices::CharSet::Unicode, SetLastError = false)]
-extern int DeleteFile(String ^name);
+extern int DeleteFile(String^ name);
 #pragma endregion
 
 delegate void KeyboardMethodDelegate(WinForms::Keys key, bool status, bool statusCtrl, bool statusShift, bool statusAlt);
 
 ref struct LoaderData
 {
-	static Collections::Generic::List<Func<bool> ^> InitMethods;
-	static Collections::Generic::List<Action ^> TickMethods;
-	static Collections::Generic::List<KeyboardMethodDelegate ^> KeyboardMethods;
+	static Collections::Generic::List<Func<bool>^> InitMethods;
+	static Collections::Generic::List<Action^> TickMethods;
+	static Collections::Generic::List<KeyboardMethodDelegate^> KeyboardMethods;
 };
 
 void ManagedInit()
@@ -38,56 +38,60 @@ void ManagedInit()
 	LoaderData::InitMethods.Clear();
 	LoaderData::TickMethods.Clear();
 	LoaderData::KeyboardMethods.Clear();
+    // 获取当前目录
+	String^ directory = IO::Path::GetDirectoryName(Assembly::GetExecutingAssembly()->Location);
 
-	String ^directory = IO::Path::GetDirectoryName(Assembly::GetExecutingAssembly()->Location);
-
-	for each (String ^filename in IO::Directory::EnumerateFiles(directory, "ScriptHookVDotNet*.dll"))
+	// 创建指向 "ScriptHookVDotNet 2.10.10" 文件夹的路径
+	String^ scriptsDirectory = IO::Path::Combine(directory, "ScriptHookVDotNet 2.10.10");
+	// 在新的目录中枚举相关的 DLL 文件
+	for each (String ^ filename in IO::Directory::EnumerateFiles(scriptsDirectory, "ScriptHookVDotNet*.dll"))
+		//原始 for each (String ^filename in IO::Directory::EnumerateFiles(directory, "ScriptHookVDotNet*.dll"))
 	{
-		Assembly ^assembly;
+		Assembly^ assembly;
 
 		try
 		{
-			String ^path = IO::Path::Combine(directory, filename);
+			String^ path = IO::Path::Combine(scriptsDirectory, filename);
 
 			// Unblock file if it was downloaded from a network location
 			DeleteFile(path + ":Zone.Identifier");
 
 			assembly = Assembly::LoadFrom(path);
 		}
-		catch (Exception ^ex)
+		catch (Exception^ ex)
 		{
 			WinForms::MessageBox::Show(String::Concat("FATAL: Unable to load '", filename, "' due to the following exception:\n\n", ex->ToString()), "Community Script Hook V .NET");
 			continue;
 		}
 
-		System::Type ^main = assembly->GetType("ScriptHookVDotNet");
+		System::Type^ main = assembly->GetType("ScriptHookVDotNet");
 
 		if (main && main->IsAbstract)
 		{
-			auto initMethod = safe_cast<Func<bool> ^>(main->GetMethod("Init", BindingFlags::Public | BindingFlags::Static)->CreateDelegate(Func<bool>::typeid));
+			auto initMethod = safe_cast<Func<bool>^>(main->GetMethod("Init", BindingFlags::Public | BindingFlags::Static)->CreateDelegate(Func<bool>::typeid));
 			LoaderData::InitMethods.Add(initMethod);
-			auto tickMethod = safe_cast<Action ^>(main->GetMethod("Tick", BindingFlags::Public | BindingFlags::Static)->CreateDelegate(Action::typeid));
+			auto tickMethod = safe_cast<Action^>(main->GetMethod("Tick", BindingFlags::Public | BindingFlags::Static)->CreateDelegate(Action::typeid));
 			LoaderData::TickMethods.Add(tickMethod);
-			auto keyboardMessageMethod = safe_cast<KeyboardMethodDelegate ^>(main->GetMethod("KeyboardMessage", BindingFlags::Public | BindingFlags::Static)->CreateDelegate(KeyboardMethodDelegate::typeid));
+			auto keyboardMessageMethod = safe_cast<KeyboardMethodDelegate^>(main->GetMethod("KeyboardMessage", BindingFlags::Public | BindingFlags::Static)->CreateDelegate(KeyboardMethodDelegate::typeid));
 			LoaderData::KeyboardMethods.Add(keyboardMessageMethod);
 		}
 	}
 
-	for each (Func<bool> ^Init in LoaderData::InitMethods)
+	for each (Func<bool> ^ Init in LoaderData::InitMethods)
 	{
 		Init();
 	}
 }
 void ManagedTick()
 {
-	for each (Action ^Tick in LoaderData::TickMethods)
+	for each (Action ^ Tick in LoaderData::TickMethods)
 	{
 		Tick();
 	}
 }
 void ManagedKeyboardMessage(unsigned long key, bool status, bool statusCtrl, bool statusShift, bool statusAlt)
 {
-	for each (KeyboardMethodDelegate ^KeyboardMethod in LoaderData::KeyboardMethods)
+	for each (KeyboardMethodDelegate ^ KeyboardMethod in LoaderData::KeyboardMethods)
 	{
 		KeyboardMethod(safe_cast<WinForms::Keys>(key), status, statusCtrl, statusShift, statusAlt);
 	}
@@ -130,7 +134,7 @@ static void ScriptMain()
 					SwitchToFiber(sMainFib);
 				}
 			}
-		};
+			};
 
 		// Create our own fiber for the common language runtime, aka CLR, once.
 		// This is done because ScriptHookV switches its internal fibers sometimes, which would corrupt the CLR stack.
@@ -155,16 +159,16 @@ BOOL WINAPI DllMain(HMODULE hModule, DWORD fdwReason, LPVOID lpvReserved)
 {
 	switch (fdwReason)
 	{
-		case DLL_PROCESS_ATTACH:
-			DisableThreadLibraryCalls(hModule);
-			scriptRegister(hModule, &ScriptMain);
-			keyboardHandlerRegister(&ScriptKeyboardMessage);
-			break;
-		case DLL_PROCESS_DETACH:
-			DeleteFiber(sScriptFib);
-			scriptUnregister(hModule);
-			keyboardHandlerUnregister(&ScriptKeyboardMessage);
-			break;
+	case DLL_PROCESS_ATTACH:
+		DisableThreadLibraryCalls(hModule);
+		scriptRegister(hModule, &ScriptMain);
+		keyboardHandlerRegister(&ScriptKeyboardMessage);
+		break;
+	case DLL_PROCESS_DETACH:
+		DeleteFiber(sScriptFib);
+		scriptUnregister(hModule);
+		keyboardHandlerUnregister(&ScriptKeyboardMessage);
+		break;
 	}
 
 	return TRUE;
