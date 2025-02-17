@@ -1,4 +1,4 @@
-/**
+ï»¿/**
  * Copyright (C) 2015 crosire & contributors
  * License: https://github.com/crosire/scripthookvdotnet#license
  */
@@ -19,7 +19,7 @@ namespace WinForms = System::Windows::Forms;
 [assembly:AssemblyDescription("An ASI plugin for Grand Theft Auto V, which allows running scripts written in any .NET language in-game.")];
 [assembly:AssemblyCompany("crosire & contributors")];
 [assembly:AssemblyProduct("ScriptHookVDotNet")];
-[assembly:AssemblyCopyright("Copyright © 2015 crosire")];
+[assembly:AssemblyCopyright("Copyright ?2015 crosire")];
 [assembly:AssemblyVersion(SHVDN_VERSION)];
 [assembly:AssemblyFileVersion(SHVDN_VERSION)];
 // Sign with a strong name to distinguish from older versions and cause .NET framework runtime to bind the correct assemblies
