@@ -35,6 +35,7 @@ namespace SHVDN
 		bool recordKeyboardEvents = true;
 		bool[] keyboardState = new bool[256];
 		List<Assembly> scriptApis = new List<Assembly>();
+		string scriptPath;
 
 		/// <summary>
 		/// Gets the friendly name of this script domain.
@@ -43,7 +44,7 @@ namespace SHVDN
 		/// <summary>
 		/// Gets the path to the directory containing scripts.
 		/// </summary>
-		public string ScriptPath => AppDomain.BaseDirectory;
+		public string ScriptPath => scriptPath;
 		/// <summary>
 		/// Gets the application domain that is associated with this script domain.
 		/// </summary>
@@ -69,7 +70,8 @@ namespace SHVDN
 		/// Initializes the script domain inside its application domain.
 		/// </summary>
 		/// <param name="apiBasePath">The path to the root directory containing the scripting API assemblies.</param>
-		private ScriptDomain(string apiBasePath)
+		/// <param name="scriptPath">The path to the directory containing scripts.</param>
+		private ScriptDomain(string apiBasePath, string scriptPath)
 		{
 			// Each application domain has its own copy of this static variable, so only need to set it once
 			CurrentDomain = this;
@@ -79,10 +81,7 @@ namespace SHVDN
 			AppDomain.UnhandledException += HandleUnhandledException;
 
 			// Load API assemblies into this script domain
-			// 定义新的脚本文件夹路径
-			string scriptsFolderPath = Path.Combine(Directory.GetCurrentDirectory(), "ScriptHookVDotNet 3.4.0");
-			//原始的 foreach (string apiPath in Directory.EnumerateFiles(apiBasePath, "ScriptHookVDotNet*.dll", SearchOption.TopDirectoryOnly))
-			foreach (string apiPath in Directory.EnumerateFiles(scriptsFolderPath, "ScriptHookVDotNet*.dll", SearchOption.TopDirectoryOnly))
+			foreach (string apiPath in Directory.EnumerateFiles(apiBasePath, "ScriptHookVDotNet*.dll", SearchOption.TopDirectoryOnly))
 			{
 				Log.Message(Log.Level.Debug, "Loading API from ", apiPath, " ...");
 
@@ -95,6 +94,9 @@ namespace SHVDN
 					Log.Message(Log.Level.Error, "Unable to load ", Path.GetFileName(apiPath), ": ", ex.ToString());
 				}
 			}
+
+			// 加载脚本路径
+			this.scriptPath = scriptPath;
 		}
 
 		~ScriptDomain()
@@ -138,13 +140,19 @@ namespace SHVDN
 		/// </summary>
 		/// <param name="basePath">The path to the application root directory.</param>
 		/// <param name="scriptPath">The path to the directory containing scripts.</param>
+		/// <param name="apiPath">The path to the directory containing API assemblies.</param>
 		/// <returns>The script domain or <see langword="null" /> in case of failure.</returns>
-		public static ScriptDomain Load(string basePath, string scriptPath)
+		public static ScriptDomain Load(string basePath, string scriptPath, string apiPath)
 		{
-			// Make absolute path to scrips location
+			// Make absolute path to scripts location
 			if (!Path.IsPathRooted(scriptPath))
 				scriptPath = Path.Combine(Path.GetDirectoryName(basePath), scriptPath);
 			scriptPath = Path.GetFullPath(scriptPath);
+
+			// Make absolute path to API location
+			if (!Path.IsPathRooted(apiPath))
+				apiPath = Path.Combine(Path.GetDirectoryName(basePath), apiPath);
+			apiPath = Path.GetFullPath(apiPath);
 
 			// Create application and script domain for all the scripts to reside in
 			var name = "ScriptDomain_" + (scriptPath.GetHashCode() ^ Environment.TickCount).ToString("X");
@@ -163,7 +171,7 @@ namespace SHVDN
 
 			try
 			{
-				scriptdomain = (ScriptDomain)appdomain.CreateInstanceFromAndUnwrap(typeof(ScriptDomain).Assembly.Location, typeof(ScriptDomain).FullName, false, BindingFlags.NonPublic | BindingFlags.Instance, null, new object[] { basePath }, null, null);
+				scriptdomain = (ScriptDomain)appdomain.CreateInstanceFromAndUnwrap(typeof(ScriptDomain).Assembly.Location, typeof(ScriptDomain).FullName, false, BindingFlags.NonPublic | BindingFlags.Instance, null, new object[] { apiPath, scriptPath }, null, null);
 			}
 			catch (Exception ex)
 			{

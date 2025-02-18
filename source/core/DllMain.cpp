@@ -19,7 +19,7 @@ namespace WinForms = System::Windows::Forms;
 [assembly:AssemblyDescription("An ASI plugin for Grand Theft Auto V, which allows running scripts written in any .NET language in-game.")];
 [assembly:AssemblyCompany("crosire & contributors")];
 [assembly:AssemblyProduct("ScriptHookVDotNet")];
-[assembly:AssemblyCopyright("Copyright ©2015 crosire")];
+[assembly:AssemblyCopyright("Copyright 2015 crosire")];
 [assembly:AssemblyVersion(SHVDN_VERSION)];
 [assembly:AssemblyFileVersion(SHVDN_VERSION)];
 // Sign with a strong name to distinguish from older versions and cause .NET framework runtime to bind the correct assemblies
@@ -139,12 +139,12 @@ static void ScriptHookVDotnet_ManagedInit()
 		SHVDN::ScriptDomain::Unload(domain);
 	}
 
-
 	// Clear log from previous runs
 	SHVDN::Log::Clear();
 
 	// Load configuration
 	String ^scriptPath = "scripts";
+	String ^apiPath = "apis";
 
 	try
 	{
@@ -166,6 +166,8 @@ static void ScriptHookVDotnet_ManagedInit()
 				Enum::TryParse(data[1], true, ScriptHookVDotNet::consoleKey);
 			else if (data[0] == "ScriptsLocation")
 				scriptPath = data[1];
+			else if (data[0] == "ApiLocation")
+				apiPath = data[1];
 		}
 	}
 	catch (Exception ^ex)
@@ -174,7 +176,7 @@ static void ScriptHookVDotnet_ManagedInit()
 	}
 
 	// Create a separate script domain
-	domain = SHVDN::ScriptDomain::Load(".", scriptPath);
+	domain = SHVDN::ScriptDomain::Load(".", scriptPath, apiPath);
 	if (domain == nullptr)
 		return;
 
