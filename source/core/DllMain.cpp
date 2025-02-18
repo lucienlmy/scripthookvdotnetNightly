@@ -6,6 +6,10 @@
 bool sGameReloaded = false;
 
 #pragma managed
+// 添加虚拟键码定义
+#define VK_CONTROL 0x11
+#define VK_SHIFT   0x10
+#define VK_MENU    0x12
 
 // Import C# code base
 #using "ScriptHookVDotNet.netmodule"
@@ -28,6 +32,11 @@ namespace WinForms = System::Windows::Forms;
 
 public ref class ScriptHookVDotNet
 {
+internal:
+	// 添加 PInvoke 声明
+	[Runtime::InteropServices::DllImport("user32.dll")]
+	static short GetAsyncKeyState(int vKey);
+
 public:
 	[SHVDN::ConsoleCommand("Print the default help")]
 	static void Help()
@@ -111,9 +120,68 @@ public:
 internal:
 	static SHVDN::Console ^console = nullptr;
 	static SHVDN::ScriptDomain ^domain = SHVDN::ScriptDomain::CurrentDomain;
-	static WinForms::Keys reloadKey = WinForms::Keys::None;
-	static WinForms::Keys consoleKey = WinForms::Keys::F4;
+	// 修改为数组以支持多个按键
+	static array<WinForms::Keys>^ reloadKeys = gcnew array<WinForms::Keys>(3) { WinForms::Keys::None, WinForms::Keys::None, WinForms::Keys::None };
+	static array<WinForms::Keys>^ consoleKeys = gcnew array<WinForms::Keys>(3) { WinForms::Keys::F4, WinForms::Keys::None, WinForms::Keys::None };
 
+	// 修改检查按键组合的方法
+	static bool CheckKeyCombination(array<WinForms::Keys>^ combination, WinForms::Keys pressedKey)
+	{
+		 // 首先找到非修饰键(主键)
+        WinForms::Keys mainKey = WinForms::Keys::None;
+        bool needCtrl = false;
+        bool needShift = false;
+        bool needAlt = false;
+
+        for(int i = 0; i < combination->Length; i++)
+        {
+            if(combination[i] == WinForms::Keys::None)
+                continue;
+
+            if(combination[i] == WinForms::Keys::Control)
+                needCtrl = true;
+            else if(combination[i] == WinForms::Keys::Shift)
+                needShift = true;
+            else if(combination[i] == WinForms::Keys::Alt)
+                needAlt = true;
+            else
+                mainKey = combination[i];
+        }
+
+        // 检查主键是否匹配
+        if(mainKey != pressedKey)
+            return false;
+
+        // 检查所需的修饰键状态
+        bool hasCtrl = (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0;
+        bool hasShift = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
+        bool hasAlt = (GetAsyncKeyState(VK_MENU) & 0x8000) != 0;
+
+        // 修饰键状态必须完全匹配
+        return (!needCtrl || hasCtrl) &&
+               (!needShift || hasShift) &&
+               (!needAlt || hasAlt) &&
+               (needCtrl == hasCtrl) &&
+               (needShift == hasShift) &&
+               (needAlt == hasAlt);
+	}
+
+	// 添加解析按键组合的方法
+	static void ParseKeysCombination(String^ keyString, array<WinForms::Keys>^ keysArray)
+	{
+		// 重置数组
+		for(int i = 0; i < 3; i++)
+			keysArray[i] = WinForms::Keys::None;
+
+		// 解析按键字符串
+		array<String^>^ keys = keyString->Split('+');
+		for(int i = 0; i < Math::Min(keys->Length, 3); i++)
+		{
+			WinForms::Keys key;
+			if(Enum::TryParse<WinForms::Keys>(keys[i]->Trim(), true, key))
+				keysArray[i] = key;
+		}
+	}
 
 	static void SetConsole()
 	{
@@ -161,9 +229,9 @@ static void ScriptHookVDotnet_ManagedInit()
 				continue;
 
 			     if (data[0] == "ReloadKey")
-				Enum::TryParse(data[1], true, ScriptHookVDotNet::reloadKey);
+				ScriptHookVDotNet::ParseKeysCombination(data[1], ScriptHookVDotNet::reloadKeys);
 			else if (data[0] == "ConsoleKey")
-				Enum::TryParse(data[1], true, ScriptHookVDotNet::consoleKey);
+				ScriptHookVDotNet::ParseKeysCombination(data[1], ScriptHookVDotNet::consoleKeys);
 			else if (data[0] == "ScriptsLocation")
 				scriptPath = data[1];
 			else if (data[0] == "ApiLocation")
@@ -228,25 +296,24 @@ static void ScriptHookVDotnet_ManagedKeyboardMessage(unsigned long keycode, bool
 
 	// Convert message into a key event
 	auto keys = safe_cast<WinForms::Keys>(keycode);
-	if (ctrl)  keys = keys | WinForms::Keys::Control;
-	if (shift) keys = keys | WinForms::Keys::Shift;
-	if (alt)   keys = keys | WinForms::Keys::Alt;
 
 	SHVDN::Console ^console = ScriptHookVDotNet::console;
 	if (console != nullptr)
 	{
-		if (keydown && keys == ScriptHookVDotNet::reloadKey)
-		{
-			// Force a reload
-			ScriptHookVDotNet::Reload();
-			return;
-		}
-		if (keydown && keys == ScriptHookVDotNet::consoleKey)
-		{
-			// Toggle open state
-			console->IsOpen = !console->IsOpen;
-			return;
-		}
+		// 只在按键按下时检查组合键
+        if (keydown)
+        {
+            if (ScriptHookVDotNet::CheckKeyCombination(ScriptHookVDotNet::reloadKeys, keys))
+            {
+                ScriptHookVDotNet::Reload();
+                return;
+            }
+            if (ScriptHookVDotNet::CheckKeyCombination(ScriptHookVDotNet::consoleKeys, keys))
+            {
+                console->IsOpen = !console->IsOpen;
+                return;
+            }
+        }
 
 		// Send key events to console
 		console->DoKeyEvent(keys, keydown);
