@@ -449,25 +449,24 @@ namespace SHVDN
 				Log.Message(Log.Level.Error, "Failed to reload scripts: ", ex.ToString());
 			}
 
-			// Filter out non-script assemblies
+			// 修改过滤逻辑
 			for (int i = 0; i < filenamesAssembly.Count; i++)
 			{
 				try
 				{
 					var assemblyName = AssemblyName.GetAssemblyName(filenamesAssembly[i]);
 
-					if (assemblyName.Name.StartsWith("ScriptHookVDotNet", StringComparison.OrdinalIgnoreCase))
+					// 检查是否是API文件并且在脚本目录中
+					if (assemblyName.Name.StartsWith("ScriptHookVDotNet", StringComparison.OrdinalIgnoreCase) && 
+						!filenamesAssembly[i].StartsWith(ScriptPath, StringComparison.OrdinalIgnoreCase))
 					{
-						// Delete copies of ScriptHookVDotNet, since these can cause issues with the assembly binder loading multiple copies
-						File.Delete(filenamesAssembly[i]);
-
+						// 仅从脚本列表中移除API文件，但不删除它
 						filenamesAssembly.RemoveAt(i--);
 					}
 				}
 				catch (Exception ex)
 				{
 					Log.Message(Log.Level.Warning, "Ignoring assembly file ", Path.GetFileName(filenamesAssembly[i]), " because of exception: ", ex.ToString());
-
 					filenamesAssembly.RemoveAt(i--);
 				}
 			}
